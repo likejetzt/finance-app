@@ -1,6 +1,6 @@
 import json
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from PIL import Image
@@ -56,6 +56,10 @@ class FakeSession:
     def put(self, url, data=None, headers=None, timeout=None):
         self.calls.append(("PUT", url, None))
         return FakeResponse(201)
+
+
+def recent() -> str:
+    return (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat(timespec="seconds")
 
 
 def make_image(path: Path):
@@ -137,7 +141,7 @@ def test_process_and_publish(settings, db):
     assert Path(post["de_images"][0]).exists()
     assert post["scheduled_at"]
 
-    db.update(post_id, status="geplant", scheduled_at="2000-01-01T00:00:00+00:00")
+    db.update(post_id, status="geplant", scheduled_at=recent())
     assert p.publish_due() == 1
     post = db.get(post_id)
     assert post["status"] == "veroeffentlicht" and post["posted_urn"] == "urn:li:share:999"
@@ -150,7 +154,7 @@ def test_process_and_publish(settings, db):
 def test_publish_without_token_marks_error(settings, db):
     p = Pipeline(settings, db, adapter=FakeAdapter(), renderer=fake_render)
     post_id = db.add_post("manuell", "ref2", None, "x", [])
-    db.update(post_id, de_text="Text", status="geplant", scheduled_at="2000-01-01T00:00:00+00:00")
+    db.update(post_id, de_text="Text", status="geplant", scheduled_at=recent())
     p.publish_due()
     post = db.get(post_id)
     assert post["status"] == "fehler" and "nicht verbunden" in post["error"]
@@ -194,3 +198,30 @@ def test_web_password(settings, monkeypatch):
     import base64
     auth = base64.b64encode(b"elena:geheim").decode()
     assert client.get("/", headers={"Authorization": f"Basic {auth}"}).status_code == 200
+
+
+def test_missed_slot_is_rescheduled_not_posted(settings, db):
+    session = FakeSession()
+    li = LinkedInClient(settings, db, session=session)
+    db.set_kv("linkedin_token", {"access_token": "tok", "expires_at": int(time.time()) + 86400})
+    p = Pipeline(settings, db, adapter=FakeAdapter(), linkedin=li, renderer=fake_render)
+    now = datetime(2026, 10, 20, 10, 0, tzinfo=timezone.utc)  # Di 12:00 Berlin
+    old = db.add_post("manuell", "old", None, "x", [])
+    db.update(old, de_text="Alt", status="geplant", scheduled_at="2026-10-19T06:30:00+00:00")
+    fresh = db.add_post("manuell", "fresh", None, "y", [])
+    db.update(fresh, de_text="Neu", status="geplant", scheduled_at="2026-10-20T09:45:00+00:00")
+
+    assert p.publish_due(now) == 1
+    assert db.get(fresh)["status"] == "veroeffentlicht"
+    moved = db.get(old)
+    assert moved["status"] == "geplant"
+    assert moved["scheduled_at"] == "2026-10-22T06:30:00+00:00"
+    assert "verpasst" in moved["hints"][-1]
+    assert sum(1 for c in session.calls if c[1].endswith("/posts")) == 1
+
+
+def test_empty_env_value_uses_default(settings, monkeypatch):
+    from linkedin_relay.config import get_settings
+
+    monkeypatch.setenv("INBOX_DIR", "")
+    assert get_settings().inbox_dir == settings.data_dir / "inbox"

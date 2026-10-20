@@ -161,11 +161,26 @@ class Pipeline:
         log.info("Beitrag %s veröffentlicht: %s", post_id, urn)
 
     def publish_due(self, now: datetime | None = None) -> int:
-        now_iso = (now or datetime.now(timezone.utc)).isoformat(timespec="seconds")
-        due = self.db.due(now_iso)
-        for post in due:
+        """Post what is due. Slots missed by more than MISSED_GRACE_MINUTES (PC was off)
+        move to the next free slot, so a backlog is never posted all at once."""
+        now = now or datetime.now(timezone.utc)
+        grace = timedelta(minutes=self.s.missed_grace_minutes)
+        published = 0
+        for post in self.db.due(now.isoformat(timespec="seconds")):
+            if datetime.fromisoformat(post["scheduled_at"]) < now - grace:
+                self.db.update(post["id"], scheduled_at=None)
+                slot = self.next_free_slot(now)
+                missed = datetime.fromisoformat(post["scheduled_at"]).astimezone(self.s.timezone)
+                hint = f"Termin {missed:%d.%m. %H:%M} verpasst (App lief nicht), automatisch verschoben."
+                if slot:
+                    self.db.update(post["id"], scheduled_at=slot, hints=post["hints"] + [hint])
+                else:
+                    self.db.update(post["id"], status="entwurf", hints=post["hints"] + [hint])
+                log.info("Beitrag %s: Termin verpasst, neu geplant für %s", post["id"], slot)
+                continue
             self.publish(post["id"])
-        return len(due)
+            published += 1
+        return published
 
     def daily(self) -> None:
         self.fetch()

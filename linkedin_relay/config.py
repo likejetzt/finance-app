@@ -16,7 +16,7 @@ def load_dotenv(path: Path) -> None:
     """Minimal .env loader: KEY=VALUE lines, existing env vars win."""
     if not path.exists():
         return
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in path.read_text(encoding="utf-8-sig").splitlines():
         line = line.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
@@ -58,7 +58,8 @@ class Settings:
     source_author: str
     post_slots: list[tuple[int, int, int]]
     auto_approve: bool
-    fetch_time: str
+    fetch_interval_minutes: int
+    missed_grace_minutes: int
     rss_urls: list[str]
     claude_model: str
     brand_primary: str
@@ -85,7 +86,11 @@ class Settings:
 
 def get_settings() -> Settings:
     load_dotenv(ROOT / ".env")
-    env = os.environ.get
+
+    def env(name: str, default: str = "") -> str:
+        # Empty lines like "INBOX_DIR=" in .env fall back to the default.
+        return os.environ.get(name) or default
+
     data_dir = Path(env("DATA_DIR", str(ROOT / "data")))
     return Settings(
         data_dir=data_dir,
@@ -102,7 +107,8 @@ def get_settings() -> Settings:
         source_author=env("SOURCE_AUTHOR", "Nicolas Boucher"),
         post_slots=parse_slots(env("POST_SLOTS", "Di 08:30, Do 08:30")),
         auto_approve=_bool("AUTO_APPROVE", False),
-        fetch_time=env("FETCH_TIME", "06:00"),
+        fetch_interval_minutes=int(env("FETCH_INTERVAL_MINUTES", "60")),
+        missed_grace_minutes=int(env("MISSED_GRACE_MINUTES", "45")),
         rss_urls=[u.strip() for u in env("RSS_URLS", "").split(",") if u.strip()],
         claude_model=env("CLAUDE_MODEL", "claude-opus-5-5"),
         brand_primary=env("BRAND_PRIMARY", "#0B2545"),

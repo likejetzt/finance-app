@@ -6,7 +6,6 @@ import argparse
 import logging
 import threading
 import time
-from datetime import datetime
 
 from .config import get_settings
 from .db import Database
@@ -16,20 +15,18 @@ log = logging.getLogger("linkedin_relay")
 
 
 def worker_loop(settings, stop: threading.Event | None = None) -> None:
-    """Publish due posts every minute; fetch and translate once a day at FETCH_TIME."""
+    """Publish due posts every minute; fetch and translate every FETCH_INTERVAL_MINUTES."""
     db = Database(settings.db_path)
     pipeline = Pipeline(settings, db)
-    hour, minute = (int(x) for x in settings.fetch_time.split(":"))
-    last_daily = None
-    log.info("Worker läuft: täglicher Abruf um %s, Veröffentlichung minütlich", settings.fetch_time)
+    last_fetch = 0.0
+    log.info("Worker läuft: Abruf alle %d Minuten, Veröffentlichung minütlich", settings.fetch_interval_minutes)
     while not (stop and stop.is_set()):
-        now = datetime.now(settings.timezone)
-        if (now.hour, now.minute) >= (hour, minute) and last_daily != now.date():
-            last_daily = now.date()
+        if time.monotonic() - last_fetch >= settings.fetch_interval_minutes * 60 or not last_fetch:
+            last_fetch = time.monotonic()
             try:
                 pipeline.daily()
             except Exception:
-                log.exception("Täglicher Abruf fehlgeschlagen")
+                log.exception("Abruf fehlgeschlagen")
         try:
             pipeline.publish_due()
         except Exception:
@@ -46,6 +43,7 @@ def main() -> None:
     start = sub.add_parser("start", help="Weboberfläche und Worker starten")
     start.add_argument("--host", default="127.0.0.1")
     start.add_argument("--port", type=int, default=5000)
+    start.add_argument("--ohne-browser", action="store_true", help="Browser nicht automatisch öffnen")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -61,6 +59,10 @@ def main() -> None:
     elif args.cmd == "start":
         from .web import create_app
         threading.Thread(target=worker_loop, args=(settings,), daemon=True).start()
+        if not args.ohne_browser:
+            import webbrowser
+            threading.Timer(2.0, webbrowser.open, args=(f"http://localhost:{args.port}",)).start()
+        print(f"\nLinkedIn Relay läuft: http://localhost:{args.port}  (Fenster offen lassen)\n")
         create_app(settings).run(host=args.host, port=args.port, debug=False)
 
 

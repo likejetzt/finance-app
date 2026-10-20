@@ -96,10 +96,10 @@ def _read_post_folder(folder: Path, media_dir: Path) -> RawPost | None:
     text_file = next((folder / n for n in TEXT_NAMES if (folder / n).exists()), None)
     if text_file is None:
         text_file = next(iter(sorted(folder.glob("*.txt")) + sorted(folder.glob("*.md"))), None)
-    text = text_file.read_text(encoding="utf-8").strip() if text_file else ""
+    text = text_file.read_text(encoding="utf-8-sig", errors="replace").strip() if text_file else ""
     meta = {}
     if (folder / "meta.json").exists():
-        meta = json.loads((folder / "meta.json").read_text(encoding="utf-8"))
+        meta = json.loads((folder / "meta.json").read_text(encoding="utf-8-sig"))
     images = sorted(p for p in folder.iterdir() if p.suffix.lower() in IMAGE_EXT)
     if not text and not images:
         return None
@@ -115,7 +115,7 @@ def _read_post_folder(folder: Path, media_dir: Path) -> RawPost | None:
 
 def _read_json_export(path: Path, media_dir: Path) -> list[RawPost]:
     """Accepts [{"id"?, "url"?, "text", "images": [url or path, ...]}, ...]."""
-    data = json.loads(path.read_text(encoding="utf-8"))
+    data = json.loads(path.read_text(encoding="utf-8-sig"))
     if isinstance(data, dict):
         data = data.get("posts", [])
     posts = []

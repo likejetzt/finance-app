@@ -83,7 +83,7 @@ kopieren, dann in der LinkedIn-Seitenverwaltung über "Beitrag planen" manuell e
 
 | Befehl | Zweck |
 |---|---|
-| `python -m linkedin_relay start` | Oberfläche und Worker (Abruf täglich um `FETCH_TIME`, Veröffentlichung minütlich) |
+| `python -m linkedin_relay start` | Oberfläche und Worker (Abruf alle `FETCH_INTERVAL_MINUTES`, Veröffentlichung minütlich) |
 | `python -m linkedin_relay worker` | nur Worker, z. B. als systemd-Dienst |
 | `python -m linkedin_relay abrufen` | einmal abrufen und übersetzen (für Cron) |
 | `python -m linkedin_relay veroeffentlichen` | fällige Beiträge posten (für Cron) |
