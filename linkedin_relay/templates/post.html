@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+<p><a href="{{ url_for('index') }}">&larr; Übersicht</a></p>
+<div class="card">
+  <span class="badge {{ p.status }}">{{ labels[p.status] }}</span>
+  {% if p.scheduled_at %}<span class="muted"> · Termin: {{ p.scheduled_at|local }}</span>{% endif %}
+  {% if p.source_url %}<span class="muted"> · <a href="{{ p.source_url }}" target="_blank" rel="noopener">Original öffnen</a></span>{% endif %}
+  {% if p.posted_urn %}<span class="muted"> · LinkedIn-ID {{ p.posted_urn }}</span>{% endif %}
+  {% if p.error %}<p class="error">Fehler: {{ p.error }}</p>{% endif %}
+  {% if p.status == 'neu' %}<p class="muted">Die deutsche Fassung wird erstellt. Seite in ein bis drei Minuten neu laden.</p>{% endif %}
+</div>
+
+{% if p.hints %}
+<div class="card">
+  <strong>Vor der Freigabe prüfen</strong>
+  <ul class="hints">{% for h in p.hints %}<li>{{ h }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<form method="post" action="{{ url_for('action', post_id=p.id) }}">
+<div class="grid">
+  <div class="card">
+    <h3>Original</h3>
+    <pre class="orig">{{ p.original_text }}</pre>
+    {% for img in p.original_images %}<p><img class="preview" src="{{ img|media }}" alt="Originalgrafik {{ loop.index }}"></p>{% endfor %}
+  </div>
+  <div class="card">
+    <h3>Deutsche Fassung</h3>
+    {% if p.de_text is not none %}
+      <textarea class="post" name="de_text" id="de_text">{{ p.de_text }}</textarea>
+      <div class="muted"><span id="count"></span> / {{ max_chars }} Zeichen</div>
+      <p><input type="text" name="feedback" placeholder="Korrekturwunsch für den Text, z. B. 'kürzer, stärker auf Mittelstand beziehen'">
+         <button name="aktion" value="text_neu">Text neu erstellen</button></p>
+      {% for img in p.de_images %}
+        <hr>
+        {% if img %}<p><img class="preview" src="{{ img|media }}?v={{ p.updated_at }}" alt="Deutsche Grafik {{ loop.index }}"></p>
+        <p><a class="btn" href="{{ img|media }}" download>Grafik {{ loop.index }} herunterladen</a></p>{% endif %}
+        <p><label class="muted">Alternativtext Grafik {{ loop.index }}<br>
+          <input type="text" name="alt_{{ loop.index0 }}" value="{{ p.alt_texts[loop.index0] if loop.index0 < p.alt_texts|length else '' }}"></label></p>
+        <p><input type="text" name="feedback_{{ loop.index0 }}" placeholder="Korrekturwunsch für Grafik {{ loop.index }}">
+           <button name="aktion" value="grafik_neu_{{ loop.index0 }}">Grafik {{ loop.index }} neu erstellen</button></p>
+      {% endfor %}
+    {% else %}
+      <p class="muted">Noch keine deutsche Fassung.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <label>Veröffentlichen am (Zeitzone {{ settings.timezone.key }})<br>
+    <input type="datetime-local" name="scheduled_at" value="{{ p.scheduled_at|input_dt }}" style="max-width:280px"></label>
+  <div class="actions">
+    {% if p.de_text is not none and p.status != 'veroeffentlicht' %}
+      <button name="aktion" value="speichern">Speichern</button>
+      {% if p.status == 'geplant' %}
+        <button name="aktion" value="zurueck">Planung aufheben</button>
+      {% else %}
+        <button class="primary" name="aktion" value="planen">Freigeben und einplanen</button>
+      {% endif %}
+      <button name="aktion" value="jetzt" onclick="return confirm('Jetzt auf LinkedIn veröffentlichen?')">Sofort veröffentlichen</button>
+    {% endif %}
+    {% if p.status in ('fehler', 'entwurf', 'abgelehnt') %}
+      <button name="aktion" value="neu_verarbeiten">Komplett neu erstellen</button>
+    {% endif %}
+    {% if p.status not in ('veroeffentlicht', 'abgelehnt') %}
+      <button class="danger" name="aktion" value="ablehnen">Ablehnen</button>
+    {% endif %}
+  </div>
+</div>
+</form>
+<script>
+  const ta = document.getElementById('de_text'), c = document.getElementById('count');
+  if (ta) { const f = () => { c.textContent = ta.value.length; c.style.color = ta.value.length > {{ max_chars }} ? '#b42318' : ''; }; ta.addEventListener('input', f); f(); }
+</script>
+{% endblock %}

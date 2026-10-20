@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LinkedIn Relay</title>
+<style>
+  :root { --ink:#1d2433; --muted:#667085; --line:#e4e7ec; --bg:#f7f8fa; --card:#fff;
+          --primary:{{ settings.brand_primary }}; --accent:{{ settings.brand_accent }}; --warn:#b54708; --err:#b42318; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; color:var(--ink); background:var(--bg); }
+  header { background:var(--primary); color:#fff; padding:12px 16px; display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+  header a { color:#fff; text-decoration:none; }
+  header .brand { font-weight:600; margin-right:auto; }
+  main { max-width:1200px; margin:0 auto; padding:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:16px; margin-bottom:16px; }
+  .flash { background:#ecfdf3; border:1px solid #abefc6; padding:10px 14px; border-radius:6px; margin-bottom:12px; }
+  .tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  .tabs a { padding:6px 12px; border-radius:999px; border:1px solid var(--line); background:#fff; color:var(--ink); text-decoration:none; font-size:14px; }
+  .tabs a.on { background:var(--primary); color:#fff; border-color:var(--primary); }
+  .badge { font-size:12px; padding:2px 8px; border-radius:999px; background:#eef2f6; white-space:nowrap; }
+  .badge.geplant { background:#e0f2fe; } .badge.veroeffentlicht { background:#dcfae6; }
+  .badge.fehler { background:#fee4e2; color:var(--err); } .badge.entwurf { background:#fef0c7; }
+  table { width:100%; border-collapse:collapse; }
+  td, th { text-align:left; padding:10px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  .muted { color:var(--muted); font-size:13px; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width: 800px) { .grid { grid-template-columns:1fr; } }
+  img.preview { max-width:100%; border:1px solid var(--line); border-radius:6px; display:block; }
+  textarea, input[type=text], input[type=url], input[type=datetime-local] { width:100%; font:inherit; padding:8px; border:1px solid var(--line); border-radius:6px; }
+  textarea.post { min-height:420px; }
+  pre.orig { white-space:pre-wrap; font:inherit; margin:0; }
+  button, .btn { font:inherit; padding:8px 14px; border-radius:6px; border:1px solid var(--line); background:#fff; cursor:pointer; color:var(--ink); text-decoration:none; display:inline-block; }
+  button.primary { background:var(--primary); color:#fff; border-color:var(--primary); }
+  button.danger { color:var(--err); }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .hints li { color:var(--warn); }
+  .error { color:var(--err); }
+</style>
+</head>
+<body>
+<header>
+  <a class="brand" href="{{ url_for('index') }}">LinkedIn Relay</a>
+  <a href="{{ url_for('index') }}">Übersicht</a>
+  <a href="{{ url_for('manual_import') }}">Beitrag importieren</a>
+</header>
+<main>
+  {% for msg in get_flashed_messages() %}<div class="flash">{{ msg }}</div>{% endfor %}
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>

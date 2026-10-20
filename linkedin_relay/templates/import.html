@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h2>Beitrag importieren</h2>
+  <p class="muted">Originaltext und Grafiken des Beitrags einfügen. Die App erstellt daraus die deutsche Fassung als Entwurf.</p>
+  <form method="post" enctype="multipart/form-data">
+    <p><label>Link zum Originalbeitrag (optional)<br><input type="url" name="url" placeholder="https://www.linkedin.com/posts/..."></label></p>
+    <p><label>Originaltext<br><textarea name="text" rows="14"></textarea></label></p>
+    <p><label>Grafiken (PNG, JPG, WEBP; mehrere möglich)<br><input type="file" name="images" multiple accept="image/*"></label></p>
+    <button class="primary">Übernehmen und übersetzen</button>
+  </form>
+</div>
+{% endblock %}
